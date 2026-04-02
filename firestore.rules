@@ -1,0 +1,169 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: userId (UID)
+    // Fields:
+    //   - uid: string (required) - The unique identifier for the user.
+    //   - displayName: string (optional) - The user's display name.
+    //   - email: string (required, email format) - The user's email address.
+    //   - role: string (required, enum: ['member', 'librarian', 'admin']) - The user's role.
+    //   - createdAt: timestamp (required) - The timestamp when the user profile was created.
+    //
+    // Collection: podcasts
+    // Document ID: podcastId (auto-generated)
+    // Fields:
+    //   - userId: string (required) - The user ID of the owner.
+    //   - title: string (required, < 200 chars) - The title of the podcast.
+    //   - script: string (required, < 50000 chars) - The full script.
+    //   - ttsReadyScript: string (optional, < 50000 chars) - TTS optimized script.
+    //   - audioUrl: string (required, url format) - URL to audio.
+    //   - imageUrl: string (required, url format) - URL to cover image.
+    //   - createdAt: timestamp (required) - The timestamp when saved.
+    //
+    // Collection: consultations
+    // Document ID: consultationId (auto-generated)
+    // Fields:
+    //   - uid: string (required) - The user ID of the requester.
+    //   - name: string (required, < 100 chars) - Full name.
+    //   - email: string (required, email format) - Email address.
+    //   - phone: string (required, < 20 chars) - Phone number.
+    //   - serviceType: string (required, enum: ['Book Recommendation', 'Research Assistance', 'Event Inquiry', 'Other']) - Type of service.
+    //   - message: string (optional, < 2000 chars) - Description.
+    //   - status: string (required, enum) - Current status.
+    //   - createdAt: timestamp (required) - Creation timestamp.
+    //
+    // Collection: bookAnalyses
+    // Document ID: analysisId (auto-generated)
+    // Fields:
+    //   - userId: string (required) - The user ID of the owner.
+    //   - bookTitle: string (required, < 200 chars) - The title of the book.
+    //   - author: string (required, < 100 chars) - The author of the book.
+    //   - analysis: string (required, < 100000 chars) - The full analysis.
+    //   - createdAt: timestamp (required) - The timestamp when saved.
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.uid;
+    }
+
+    function isPodcastOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+         (request.auth.token.email == "atung.ttvhtp@gmail.com" && request.auth.token.email_verified == true)); // Default admin
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(['uid', 'displayName', 'email', 'role', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             data.email is string && isValidEmail(data.email) &&
+             data.role in ['member', 'librarian', 'admin'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidPodcast(data) {
+      return hasOnlyAllowedFields(['userId', 'title', 'script', 'ttsReadyScript', 'audioUrl', 'imageUrl', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 200 &&
+             data.script is string && data.script.size() < 50000 &&
+             (!('ttsReadyScript' in data) || (data.ttsReadyScript is string && data.ttsReadyScript.size() < 50000)) &&
+             isValidUrl(data.audioUrl) &&
+             (!('imageUrl' in data) || isValidUrl(data.imageUrl)) &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidConsultation(data) {
+      return hasOnlyAllowedFields(['uid', 'name', 'email', 'phone', 'serviceType', 'message', 'status', 'createdAt']) &&
+             data.uid == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.email is string && isValidEmail(data.email) &&
+             data.phone is string && data.phone.size() < 20 &&
+             data.serviceType in ['Book Recommendation', 'Research Assistance', 'Event Inquiry', 'Other'] &&
+             (!('message' in data) || (data.message is string && data.message.size() < 2000)) &&
+             data.status in ['pending', 'contacted', 'scheduled', 'completed'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidBookAnalysis(data) {
+      return hasOnlyAllowedFields(['userId', 'bookTitle', 'author', 'analysis', 'createdAt']) &&
+             data.userId == request.auth.uid &&
+             data.bookTitle is string && data.bookTitle.size() > 0 && data.bookTitle.size() < 200 &&
+             data.author is string && data.author.size() > 0 && data.author.size() < 100 &&
+             data.analysis is string && data.analysis.size() > 0 && data.analysis.size() < 100000 &&
+             data.createdAt is timestamp;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == 'member' || isAdmin());
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
+    }
+
+    match /podcasts/{podcastId} {
+      allow read: if isPodcastOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidPodcast(request.resource.data);
+      allow update: if isPodcastOwner() && isValidPodcast(request.resource.data);
+      allow delete: if isPodcastOwner() || isAdmin();
+    }
+
+    match /consultations/{consultationId} {
+      allow read: if isDocOwner() || isAdmin();
+      allow create: if isAuthenticated() && isValidConsultation(request.resource.data) && request.resource.data.status == 'pending';
+      allow update: if isAdmin() && isValidConsultation(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /bookAnalyses/{analysisId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId || isAdmin();
+      allow create: if isAuthenticated() && isValidBookAnalysis(request.resource.data);
+      allow update: if isAuthenticated() && request.auth.uid == resource.data.userId && isValidBookAnalysis(request.resource.data);
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.userId || isAdmin();
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

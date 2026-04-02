@@ -1,0 +1,100 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=Great+Vibes&display=swap');
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-jakarta: "Plus Jakarta Sans", sans-serif;
+  --font-artistic: "Great Vibes", cursive;
+  
+  --color-bg-main: #020617;
+  --color-bg-card: #0f172a;
+  --color-bg-hover: #1e293b;
+  --color-primary: #c5a059;
+  --color-primary-hover: #b48a32;
+  --color-accent: #6366f1;
+  --color-text-main: #f9fafb;
+  --color-text-secondary: #cbd5f5;
+  --color-border-custom: rgba(255,255,255,0.12);
+}
+
+:root {
+  --bg-main: #020617;
+  --bg-card: #0f172a;
+  --bg-hover: #1e293b;
+  --primary: #c5a059;
+  --primary-hover: #b48a32;
+  --accent: #6366f1;
+  --text-main: #f9fafb;
+  --text-secondary: #cbd5f5;
+  --border: rgba(255,255,255,0.12);
+}
+
+@layer base {
+  body {
+    @apply antialiased;
+    background: radial-gradient(circle at 50% -20%, #1e293b 0%, #020617 100%);
+    color: var(--text-main);
+    font-family: var(--font-sans);
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-jakarta font-bold tracking-tight;
+  }
+
+  p {
+    color: var(--text-secondary);
+    line-height: 1.6;
+  }
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+}
+
+.glass {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.highlight {
+  @apply text-primary;
+}
+
+@keyframes shine {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.animate-shine {
+  background-size: 200% auto;
+  animation: shine 3s linear infinite;
+}
+
+.hero-title {
+  background: linear-gradient(135deg, #fde68a 0%, #c5a059 50%, #b48a32 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}

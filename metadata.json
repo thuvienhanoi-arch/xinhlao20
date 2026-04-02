@@ -1,0 +1,7 @@
+{
+  "name": "Remix: Hanoi Library AI Studio",
+  "description": "Nền tảng thư viện cao cấp với trợ lý AI phân tích sách, tạo podcast chuyên sâu và tư vấn dịch vụ thư viện.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
